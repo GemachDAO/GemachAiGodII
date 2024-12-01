@@ -1,10 +1,10 @@
-import { Character, ModelProviderName, defaultCharacter } from "@ai16z/eliza";
+import { Character, ModelProviderName, defaultCharacter,Clients } from "@ai16z/eliza";
 
 export const character: Character = {
     ...defaultCharacter,
     name: "Ari",
     plugins: [],
-    clients: ["DISCORD", "DIRECT", "TWITTER", "TELEGRAM"],
+    clients: [Clients.DISCORD, Clients.DIRECT, Clients.TWITTER, Clients.TELEGRAM],
     modelProvider: ModelProviderName.OPENAI,
     settings: {
         secrets: {},
