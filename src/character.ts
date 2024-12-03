@@ -5,7 +5,7 @@ export const character: Character = {
     ...defaultCharacter,
     name: "Ari",
     plugins: [],
-    clients: [Clients.DIRECT, Clients.TWITTER, Clients.DISCORD],
+    clients: [Clients.DIRECT, Clients.TWITTER, Clients.TELEGRAM],
     modelProvider: ModelProviderName.OPENAI,
     settings: {
         secrets: {},
