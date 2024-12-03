@@ -1,9 +1,10 @@
 import { Character, ModelProviderName, defaultCharacter,Clients } from "@ai16z/eliza";
+import { WebSearchPlugin } from "@ai16z/plugin-web-search";
 
 export const character: Character = {
     ...defaultCharacter,
     name: "Ari",
-    plugins: [],
+    plugins: [WebSearchPlugin],
     clients: [Clients.DIRECT, Clients.TWITTER, Clients.TELEGRAM],
     modelProvider: ModelProviderName.OPENAI,
     settings: {
