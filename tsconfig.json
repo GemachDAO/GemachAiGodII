@@ -2,13 +2,17 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
-    "lib": ["ESNext", "dom"],
-    "moduleResolution": "Bundler",
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "lib": [
+      "ESNext",
+      "dom"
+    ],
+    "allowSyntheticDefaultImports": true,
     "outDir": "./dist",
     "rootDir": ".",
     "strict": false,
     "esModuleInterop": true,
-    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": false,
     "allowImportingTsExtensions": true,
     "declaration": true,
@@ -20,5 +24,13 @@
     "noEmitOnError": false,
     "moduleDetection": "force",
     "allowArbitraryExtensions": true
-  }
+  },
+  "ts-node": {
+    "experimentalSpecifierResolution": "node",
+    "transpileOnly": true,
+    "esm": true,
+  },
+  "include": [
+    "src"
+  ]
 }
