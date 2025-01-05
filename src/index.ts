@@ -37,7 +37,7 @@ import { tokenTrendingPlugin } from "./plugins/trending-token";
 import { googleSearchPlugin } from "./plugins/web-search";
 const __filename = fileURLToPath(import.meta.url); // get the resolved path to the file
 const __dirname = path.dirname(__filename); // get the name of the directory
-
+import { createNodePlugin } from "@elizaos/plugin-node";
 function tryLoadFile(filePath: string): string | null {
   try {
     return fs.readFileSync(filePath, "utf8");
@@ -333,7 +333,7 @@ export async function initializeClients(
 
   return clients;
 }
-
+let nodePlugin: any | undefined;
 export function createAgent(
   character: Character,
   db: IDatabaseAdapter,
@@ -345,6 +345,10 @@ export function createAgent(
     "Creating runtime for character",
     character.name
   );
+
+  nodePlugin ??= createNodePlugin();
+
+
   return new AgentRuntime({
 
     databaseAdapter: db,
@@ -355,8 +359,8 @@ export function createAgent(
     plugins: [
       bootstrapPlugin,
       tokenTrendingPlugin,
-      googleSearchPlugin
-      // nodePlugin,
+      googleSearchPlugin,
+      nodePlugin,
       // character.settings.secrets?.WALLET_PUBLIC_KEY ? solanaPlugin : null,
     ].filter(Boolean),
     providers: [],
