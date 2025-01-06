@@ -1,5 +1,5 @@
 import { Plugin } from "@elizaos/core";
-import {
+import { 
     findTrendingTokens,
     checkTokenSecurity,
     getExchanges,
