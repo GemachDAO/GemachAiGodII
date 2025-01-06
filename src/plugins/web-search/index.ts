@@ -1,6 +1,5 @@
 import {
     Action,
-    ActionExample,
     HandlerCallback,
     IAgentRuntime,
     Memory,
@@ -12,6 +11,7 @@ import {
     Plugin,
     generateText,
 } from "@elizaos/core";
+import { composeResponseContext, generateResponse } from "../utils";
 import axios from "axios";
 import { load } from "cheerio";
 

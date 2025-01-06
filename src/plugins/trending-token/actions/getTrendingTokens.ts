@@ -7,19 +7,22 @@ import {
     State,
     composeContext,
     ModelClass,
-    generateObjectDeprecated,
-    elizaLogger,
-    generateText
+    generateObjectDeprecated, elizaLogger
 } from "@elizaos/core";
-import { composeActionContext, composeResponseContext, composeErrorResponseContext } from "../../utils";
-import { CoinGeckoClient } from "coingecko-api-v3";
+import { CoinGeckoClient, Trending } from "coingecko-api-v3";
 import axios from "axios";
+import { composeResponseContext, generateResponse } from "../../utils";
 
 interface TrendingTokenParams {
     chain?: string;
     timeframe?: string;
     limit?: number;
     source?: "coingecko" | "dexscreener" | "all";
+}
+
+interface TrendingTokenResponse {
+    coingecko: any[] | Trending
+    dexscreener: TrendingToken[];
 }
 
 interface TrendingToken {
@@ -368,19 +371,14 @@ Example response:
 \`\`\`json
 {
     "chain": "ethereum",
-    "timeframe": "24h",
-    "limit": 5,
-    "source": "all"
+ 
 }
 \`\`\`
 
 {{recentMessages}}
 
 Extract or infer:
-- Chain name (ethereum, solana, etc.)
-- Timeframe (1h, 24h, 7d)
-- Number of tokens to return (limit)
-- Source (coingecko, dexscreener, or all)
+- Chain name (ethereum, solana, etc.) if not provided, default to "all"
 
 Respond with a JSON markdown block containing only the extracted values.`;
 
@@ -397,6 +395,7 @@ async function getDexScreenerTrending(): Promise<TrendingToken[]> {
             description: boost.description,
             boost_amount: boost.amount,
             links: boost.links,
+            dex_screener_id: boost.totalAmount,
         }));
     } catch (error) {
         console.error("Error fetching DexScreener data:", error);
@@ -404,34 +403,18 @@ async function getDexScreenerTrending(): Promise<TrendingToken[]> {
     }
 }
 
-async function getCoinGeckoTrending(limit: number): Promise<TrendingToken[]> {
-    const client = new CoinGeckoClient();
-    const trendingData = await client.trending();
-    if (!trendingData.coins) {
+async function getCoinGeckoTrending() {
+    try {
+        console.log("getCoinGeckoTrending");
+        const client = new CoinGeckoClient();
+        const trendingData = await client.trending();
+        console.log("trendingData", trendingData);
+        return trendingData.coins
+
+    } catch (error) {
+        console.error("Error fetching CoinGecko data:", error);
         return [];
     }
-    const coinWithItem = trendingData.coins.filter(coin => coin.item);
-    console.log("coinWithItem", coinWithItem);
-    const trendingTokens = await Promise.all(
-        coinWithItem.map(async (coin) => {
-            if (!coin.item) {
-                return null;
-            }
-
-            const details = await client.coinId({ id: coin.item.id as string });
-            return {
-                symbol: coin.item.symbol?.toUpperCase() || "",
-                name: coin.item.name,
-                chain: "multi-chain",
-                price_change_24h:
-                    `${details.market_data?.price_change_percentage_24h?.toFixed(2)}%` ||
-                    "N/A",
-                volume_24h: `$${(details.market_data?.total_volume?.usd || 0).toLocaleString()}`,
-                market_cap: `$${(details.market_data?.market_cap?.usd || 0).toLocaleString()}`,
-            };
-        })
-    );
-    return trendingTokens.filter(Boolean) as TrendingToken[];
 }
 
 async function getTokenSecurity(
@@ -453,17 +436,6 @@ async function getTokenSecurity(
     }
 }
 
-async function generateResponse(
-    runtime: IAgentRuntime,
-    context: string
-): Promise<string> {
-    return generateText({
-        runtime,
-        context,
-        modelClass: ModelClass.SMALL,
-    });
-}
-
 export const findTrendingTokens: Action = {
     name: "GET_GLOBAL_TRENDING_TOKENS",
     description:
@@ -483,74 +455,50 @@ export const findTrendingTokens: Action = {
         runtime: IAgentRuntime,
         message: Memory,
         state: State | undefined,
-        options: Record<string, unknown> = {},
+        _options: { [key: string]: unknown },
         callback?: HandlerCallback
     ) => {
+
+        // Initialize or update state
         let currentState = state ?? (await runtime.composeState(message));
         currentState = await runtime.updateRecentMessageState(currentState);
 
+
+
+        // TODO: use generateObject with zod schema
+        //  as TrendingTokenParams;
+
         try {
-            const context = composeActionContext(
-                "GET_GLOBAL_TRENDING_TOKENS",
-                "Find globally trending tokens across all chains using CoinGecko and DexScreener",
-                currentState
-            );
-
-            const params = await generateObjectDeprecated({
-                runtime,
-                context,
-                modelClass: ModelClass.SMALL,
-            });
-
-            let trendingTokens: TrendingToken[] = [];
-
-            if (params.source === "all" || params.source === "coingecko") {
-                const cgTokens = await getCoinGeckoTrending(params.limit || 5);
-                trendingTokens = [...trendingTokens, ...cgTokens];
+            let trendingTokens: TrendingTokenResponse = {
+                coingecko: [],
+                dexscreener: []
             }
-
-            if (params.source === "all" || params.source === "dexscreener") {
-                const dexTokens = await getDexScreenerTrending();
-                const filteredDexTokens = dexTokens
-                    .filter(
-                        (token) =>
-                            !params.chain ||
-                            token.chain.toLowerCase() ===
-                            params.chain.toLowerCase()
-                    )
-                    .slice(0, params.limit || 5);
-                trendingTokens = [...trendingTokens, ...filteredDexTokens];
-            }
-
+            const cgTokens = await getCoinGeckoTrending();
+            console.log("cgTokens", cgTokens);
+            const dexTokens = await getDexScreenerTrending();
+            console.log("dexTokens", dexTokens);
+            trendingTokens.coingecko = cgTokens;
+            trendingTokens.dexscreener = [...trendingTokens.dexscreener, ...dexTokens];
+            console.log("trendingTokens", trendingTokens);
             const response = composeResponseContext(trendingTokens, currentState);
             const responseText = await generateResponse(runtime, response);
-
-            callback?.({
-                text: responseText,
-                type: "success",
-                data: trendingTokens,
-            });
+            if (callback) {
+                callback({
+                    text: responseText,
+                    type: "success",
+                    data: trendingTokens,
+                });
+            }
 
             return true;
-        } catch (error) {
-            const errorMessage =
-                error instanceof Error ? error.message : String(error);
 
-            const errorResponse = composeErrorResponseContext(
-                errorMessage,
-                currentState
-            );
-            const errorResponseText = await generateResponse(
-                runtime,
-                errorResponse
-            );
-
-            callback?.({
-                text: errorResponseText,
-                type: "error",
-                content: { error: errorMessage },
-            });
-
+        } catch (error: any) {
+            if (callback) {
+                callback({
+                    text: `Error finding trending tokens: ${error.message}`,
+                    type: "error",
+                });
+            }
             return false;
         }
     },
@@ -563,7 +511,7 @@ export const findTrendingTokens: Action = {
             {
                 user: "{{user2}}",
                 content: {
-                    text: "Here are the trending tokens on Ethereum...",
+                    text: "",
                     action: "GET_GLOBAL_TRENDING_TOKENS",
                 },
             },
@@ -623,23 +571,22 @@ export const getGlobalData: Action = {
         runtime: IAgentRuntime,
         message: Memory,
         state: State | undefined,
-        options: Record<string, unknown> = {},
+        _options: { [key: string]: unknown },
         callback?: HandlerCallback
     ) => {
-        if (callback) {
-            callback({
-                text: "📊 Fetching global cryptocurrency data...",
-                type: "processing",
-            });
-        }
+        let currentState = state ?? (await runtime.composeState(message));
+        currentState = await runtime.updateRecentMessageState(currentState);
+
 
         try {
             const client = new CoinGeckoClient();
             const globalData = await client.global();
+            const response = composeResponseContext(globalData.data, currentState);
+            const responseText = await generateResponse(runtime, response);
 
             if (callback) {
                 callback({
-                    text: formatGlobalDataResponse(globalData.data),
+                    text: responseText,
                     type: "success",
                     data: globalData.data,
                 });
@@ -665,7 +612,7 @@ export const getGlobalData: Action = {
             {
                 user: "{{user2}}",
                 content: {
-                    text: "Here's the current global cryptocurrency market data...",
+                    text: "",
                     action: "GET_GLOBAL_DATA",
                 },
             },
@@ -684,23 +631,21 @@ export const getExchanges: Action = {
         runtime: IAgentRuntime,
         message: Memory,
         state: State | undefined,
-        options: Record<string, unknown> = {},
+        _options: { [key: string]: unknown },
         callback?: HandlerCallback
     ) => {
-        if (callback) {
-            callback({
-                text: "🏢 Fetching exchange data...",
-                type: "processing",
-            });
-        }
 
+        let currentState = state ?? (await runtime.composeState(message));
+        currentState = await runtime.updateRecentMessageState(currentState);
         try {
             const client = new CoinGeckoClient();
             const exchangesData = await client.exchanges({});
+            const response = composeResponseContext(exchangesData, currentState);
+            const responseText = await generateResponse(runtime, response);
 
             if (callback) {
                 callback({
-                    text: formatExchangesResponse(exchangesData),
+                    text: responseText,
                     type: "success",
                     data: exchangesData,
                 });
@@ -726,7 +671,7 @@ export const getExchanges: Action = {
             {
                 user: "{{user2}}",
                 content: {
-                    text: "Here are the supported cryptocurrency exchanges...",
+                    text: "",
                     action: "GET_EXCHANGES",
                 },
             },
@@ -745,24 +690,12 @@ export const getSimplePrice: Action = {
         runtime: IAgentRuntime,
         message: Memory,
         state: State | undefined,
-        options: Record<string, unknown> = {},
+        _options: { [key: string]: unknown },
         callback?: HandlerCallback
     ) => {
-        if (callback) {
-            callback({
-                text: "💰 Fetching coin prices...",
-                type: "processing",
-            });
-        }
-        console.log("Message ", message);
-        console.log("State ", state);
-        // Initialize or update state
-        // if (!state) {
-        //     state = (await runtime.composeState(message)) as State;
-        // } else {
-        //     state = await runtime.updateRecentMessageState(state);
-        // }
-        // TODO: handle the case where the agent doesnt know the coin ids
+        let currentState = state ?? (await runtime.composeState(message));
+        currentState = await runtime.updateRecentMessageState(currentState);
+
         const context = `Extract coin IDs from the last user message:
 Example response:
 \`\`\`json
@@ -785,17 +718,17 @@ Extract:
         // as unknown as PriceParams;
 
         try {
-            console.log("getSimplePrice params", params);
             const client = new CoinGeckoClient();
             const priceData = await client.simplePrice({
                 ids: params.coins.join(","),
                 vs_currencies: "usd",
             });
-            console.log("getSimplePrice priceData", priceData);
+            const response = composeResponseContext(priceData, currentState);
+            const responseText = await generateResponse(runtime, response);
 
             if (callback) {
                 callback({
-                    text: formatPriceResponse(priceData),
+                    text: responseText,
                     type: "success",
                     data: priceData,
                 });
@@ -821,7 +754,7 @@ Extract:
             {
                 user: "{{user2}}",
                 content: {
-                    text: "Here are the current prices...",
+                    text: "",
                     action: "GET_SIMPLE_PRICE",
                 },
             },
@@ -899,21 +832,13 @@ export const checkTokenSecurity: Action = {
         runtime: IAgentRuntime,
         message: Memory,
         state: State | undefined,
-        options: Record<string, unknown> = {},
+        _options: { [key: string]: unknown },
         callback?: HandlerCallback
     ) => {
-        if (callback) {
-            callback({
-                text: "🔒 Analyzing token security...",
-                type: "processing",
-            });
-        }
+        let currentState = state ?? (await runtime.composeState(message));
+        currentState = await runtime.updateRecentMessageState(currentState);
 
-        if (!state) {
-            state = (await runtime.composeState(message)) as State;
-        } else {
-            state = await runtime.updateRecentMessageState(state);
-        }
+
         const context = `Extract chain ID and token address from the message:
 Example response:
 \`\`\`json
@@ -989,10 +914,11 @@ Extract:
                 }
                 return false;
             }
-
+            const response = composeResponseContext(securityInfo, currentState);
+            const responseText = await generateResponse(runtime, response);
             if (callback) {
                 callback({
-                    text: formatSecurityResponse(securityInfo),
+                    text: responseText,
                     type: "success",
                     data: securityInfo,
                 });
@@ -1018,7 +944,7 @@ Extract:
             {
                 user: "{{user2}}",
                 content: {
-                    text: "Analyzing token security...",
+                    text: "",
                     action: "CHECK_TOKEN_SECURITY",
                 },
             },
@@ -1212,21 +1138,13 @@ export const getTrendingTokensOnChain: Action = {
         runtime: IAgentRuntime,
         message: Memory,
         state: State | undefined,
-        options: Record<string, unknown> = {},
+        _options: { [key: string]: unknown },
         callback?: HandlerCallback
     ) => {
-        if (callback) {
-            callback({
-                text: "🆕 Fetching trending tokens on network...",
-                type: "processing",
-            });
-        }
-
-        if (!state) {
-            state = (await runtime.composeState(message)) as State;
-        } else {
-            state = await runtime.updateRecentMessageState(state);
-        }
+  
+        let currentState = state ?? (await runtime.composeState(message));
+        currentState = await runtime.updateRecentMessageState(currentState);
+    
 
         const context = composeContext({
             state,
@@ -1263,10 +1181,12 @@ export const getTrendingTokensOnChain: Action = {
                 }
                 return true;
             }
+            const response = composeResponseContext(poolsData, currentState);
+            const responseText = await generateResponse(runtime, response);
 
             if (callback) {
                 callback({
-                    text: formatTVLPoolsResponse(poolsData),
+                    text: responseText,
                     type: "success",
                     data: poolsData,
                 });
@@ -1294,76 +1214,13 @@ export const getTrendingTokensOnChain: Action = {
             {
                 user: "{{user2}}",
                 content: {
-                    text: "Here are the trending tokens by TVL...",
+                    text: "",
                     action: "GET_NETWORK_TRENDING_TOKENS",
                 },
             },
         ],
     ],
 };
-
-function getILRiskEmoji(risk: string): string {
-    switch (risk.toLowerCase()) {
-        case "no":
-            return "✅";
-        case "low":
-            return "📊";
-        case "medium":
-            return "⚡";
-        case "high":
-            return "⚠️";
-        case "very high":
-            return "🚨";
-        default:
-            return "❓";
-    }
-}
-
-function formatTVLPoolsResponse(pools: PoolData[]): string {
-    if (!pools.length) {
-        return "❌ No pool data available";
-    }
-
-    return (
-        ` Top Pools by TVL:\n\n` +
-        pools
-            .slice(0, 10)
-            .map((pool, index) => {
-                const riskEmoji = getILRiskEmoji(pool.ilRisk || "unknown");
-                const apyFormatted = pool.apy
-                    ? `${pool.apy.toFixed(2)}%`
-                    : "N/A";
-                const baseApyFormatted = pool.apyBase
-                    ? `${pool.apyBase.toFixed(2)}%`
-                    : "N/A";
-                const rewardApyFormatted = pool.apyReward
-                    ? `${pool.apyReward.toFixed(2)}%`
-                    : "N/A";
-
-                let predictionInfo = "";
-                if (pool.predictions?.predictedClass) {
-                    const confidence =
-                        pool.predictions.predictedProbability?.toFixed(1) ||
-                        "N/A";
-                    predictionInfo = `\n   • Prediction: ${pool.predictions.predictedClass} (${confidence}% confidence)`;
-                }
-
-                return (
-                    `${index + 1}. ${pool.project} (${pool.symbol})\n` +
-                    `   • Chain: ${pool.chain}\n` +
-                    `   • TVL: $${formatNumber(pool.tvlUsd || 0)}\n` +
-                    `   • Total APY: ${apyFormatted}\n` +
-                    `   • Base APY: ${baseApyFormatted}\n` +
-                    `   • Reward APY: ${rewardApyFormatted}\n` +
-                    `   • IL Risk: ${riskEmoji} ${pool.ilRisk}\n` +
-                    `   • Exposure: ${pool.exposure || "Unknown"}` +
-                    `${predictionInfo}` +
-                    (pool.poolMeta ? `\n   • Note: ${pool.poolMeta}` : "")
-                );
-            })
-            .join("\n\n")
-    );
-}
 
 async function getToPoolByTVL(args: { chain: string }): Promise<PoolData[]> {
     try {
@@ -1372,7 +1229,7 @@ async function getToPoolByTVL(args: { chain: string }): Promise<PoolData[]> {
         const result = data.filter((pool: any) => pool.chain === args.chain);
         const top50Pools = result
             .sort((a: any, b: any) => b.tvlUsd - a.tvlUsd)
-            .slice(0, 100);
+            .slice(0, 150);
         return top50Pools;
     } catch (error) {
         console.error("Error calling Api:", error);

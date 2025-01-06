@@ -1,4 +1,4 @@
-import { State, composeContext } from "@elizaos/core"
+import { IAgentRuntime, ModelClass, State, composeContext, generateText } from "@elizaos/core"
 
 export const composeActionContext = (actionName: string,
     actionDescription: string,
@@ -49,6 +49,7 @@ export const composeResponseContext = (result: unknown, state: State) => {
 
         Here is the result:
         ${JSON.stringify(result)}
+        IMPORTANT: MAKE SURE TO INCLUDE THE EVERY ELEMENT OF THE RESULT IN THE RESPONSE. DO NOT OMIT ANYTHING.
 
         {{actions}}
 
@@ -86,3 +87,19 @@ export const composeErrorResponseContext = (errorMessage: string, state: State) 
     `;
     return composeContext({ state, template: errorResponseTemplate });
 };
+
+export async function generateResponse(
+    runtime: IAgentRuntime,
+    context: string
+): Promise<string> {
+    // in the context, the message should be addressed to the user not the agent
+
+    return generateText({
+        runtime,
+        context: `
+        The message is addressed to the user. so the response should be in the first person.
+        ${context}
+        `,
+        modelClass: ModelClass.SMALL,
+    });
+}

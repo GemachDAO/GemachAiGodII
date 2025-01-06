@@ -4,7 +4,7 @@ import {
     checkTokenSecurity,
     getExchanges,
     getGlobalData,
-    getSimplePrice,
+    getSimplePrice,getTrendingTokensOnChain
 } from "./actions/getTrendingTokens";
 
 export const tokenTrendingPlugin: Plugin = {
@@ -17,6 +17,7 @@ export const tokenTrendingPlugin: Plugin = {
         getExchanges,
         getGlobalData,
         getSimplePrice,
+        getTrendingTokensOnChain
     ],
     evaluators: [],
     providers: [],

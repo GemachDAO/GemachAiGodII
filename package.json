@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsup --format esm --dts",
     "start": "tsc && node --loader ts-node/esm src/index.ts",
-    "test": "jest"
+    "test": "jest",
+    "clean": "bash scripts/clean.sh"
   },
   "keywords": [],
   "author": "",
