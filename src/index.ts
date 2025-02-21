@@ -38,6 +38,7 @@ import { googleSearchPlugin } from "./plugins/web-search";
 const __filename = fileURLToPath(import.meta.url); // get the resolved path to the file
 const __dirname = path.dirname(__filename); // get the name of the directory
 import { createNodePlugin } from "@elizaos/plugin-node";
+
 function tryLoadFile(filePath: string): string | null {
   try {
     return fs.readFileSync(filePath, "utf8");
