@@ -11,12 +11,15 @@ import { createNodePlugin } from "@elizaos/plugin-node";
 import { bootstrapPlugin } from "@elizaos/plugin-bootstrap";
 import createSequencerPlugin from "@iqai/plugin-sequencer";
 import { Character, elizaLogger } from "@elizaos/core";
+import { createOdosPlugin } from "@iqai/plugin-odos";
+import { createFraxlendPlugin } from "@iqai/plugin-fraxlend";
 // import { coingeckoPlugin } from "./plugins/plugin-coingecko/src";
 import { tokenTrendingPlugin } from "./plugins/trending-token";
 import { createATPPlugin } from "@iqai/plugin-atp";
 import path from "path";
 import fs from "fs";
 import yargs from "yargs";
+import { fraxtal } from "viem/chains";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -121,6 +124,7 @@ async function main() {
     .withDatabase(databaseAdapter)
     .withClient("direct", DirectClientInterface)
     .withClient("telegram", TelegramClientInterface)
+    .withClient("twitter", TwitterClientInterface)
     .withModelProvider(ModelProviderName.OPENAI, process.env.OPENAI_API_KEY)
     .withPlugin(googleSearchPlugin)
     .withPlugin(tokenTrendingPlugin)
@@ -133,7 +137,16 @@ async function main() {
     const atpPlugin = await createATPPlugin({
       walletPrivateKey: process.env.WALLET_PRIVATE_KEY,
     });
+    const fraxlendPlugin = await createFraxlendPlugin({
+      walletPrivateKey: process.env.WALLET_PRIVATE_KEY,
+    });
+    const odosPlugin = await createOdosPlugin({
+      chain: fraxtal,
+      walletPrivateKey: process.env.WALLET_PRIVATE_KEY,
+    });
     builder.withPlugin(atpPlugin);
+    builder.withPlugin(fraxlendPlugin);
+    builder.withPlugin(odosPlugin);
   }
 
   // Create an agent for each character
