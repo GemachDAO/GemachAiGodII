@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsup --format esm --dts",
-    "start": "tsc && node --loader ts-node/esm src/index.ts",
+    "start": "tsc && node --loader ts-node/esm src/agent.ts",
     "test": "jest",
     "clean": "bash scripts/clean.sh"
   },
