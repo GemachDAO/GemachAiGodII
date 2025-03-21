@@ -1,10 +1,11 @@
 import { AgentBuilder, ModelProviderName, } from "@iqai/agent";
 
-import { SqliteDatabaseAdapter } from "@elizaos/adapter-sqlite";
+import SqliteAdapter from "@elizaos/adapter-sqlite";
+
 import DirectClientInterface from "@elizaos/client-direct";
-import Database from "better-sqlite3";
-import { TelegramClientInterface } from "@elizaos/client-telegram";
-import { TwitterClientInterface } from "@elizaos/client-twitter";
+import createWikiPlugin from "@iqai/plugin-wiki";
+import telegramPlugin from "@elizaos/client-telegram";
+import twitterPlugin from "@elizaos/client-twitter";
 import { ari } from "./characters/ari";
 import { googleSearchPlugin } from "./plugins/web-search";
 import { createNodePlugin } from "@elizaos/plugin-node";
@@ -13,9 +14,9 @@ import createSequencerPlugin from "@iqai/plugin-sequencer";
 import { Character, elizaLogger } from "@elizaos/core";
 import { createOdosPlugin } from "@iqai/plugin-odos";
 import { createFraxlendPlugin } from "@iqai/plugin-fraxlend";
-// import { coingeckoPlugin } from "./plugins/plugin-coingecko/src";
+import { coingeckoPlugin } from "./plugins/plugin-coingecko/src";
 import { tokenTrendingPlugin } from "./plugins/trending-token";
-import { createATPPlugin } from "@iqai/plugin-atp";
+import { createAtpPlugin } from "@iqai/plugin-atp";
 import path from "path";
 import fs from "fs";
 import yargs from "yargs";
@@ -24,6 +25,10 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+interface ExtendedCharacter extends Character {
+  clients: string[];
+}
 
 function tryLoadFile(filePath: string): string | null {
   try {
@@ -54,11 +59,11 @@ const parseArguments = (): {
   }
 }
 
-async function loadCharacters(charactersArg: string): Promise<Character[]> {
+async function loadCharacters(charactersArg: string): Promise<ExtendedCharacter[]> {
   let characterPaths = charactersArg
     ?.split(",")
     .map((filePath) => filePath.trim());
-  const loadedCharacters: Character[] = [];
+  const loadedCharacters: ExtendedCharacter[] = [];
 
   if (characterPaths?.length > 0) {
     for (const characterPath of characterPaths) {
@@ -111,30 +116,28 @@ async function main() {
     characters = await loadCharacters(charactersArg);
   }
 
-  // Setup database
-  const databaseAdapter = new SqliteDatabaseAdapter(
-    new Database("./data/db.sqlite")
-  );
 
   const sequencerPlugin = await createSequencerPlugin();
-  const nodePlugin = createNodePlugin();
-  console.log("API key ", process.env.OPENAI_API_KEY)
+  // const nodePlugin = createNodePlugin();
+  const pluginWiki = await createWikiPlugin();
   // Create agent builder with common configuration
   const builder = new AgentBuilder()
-    .withDatabase(databaseAdapter)
-    .withClient("direct", DirectClientInterface)
-    .withClient("telegram", TelegramClientInterface)
-    .withClient("twitter", TwitterClientInterface)
+    .withDatabase(SqliteAdapter)
+    .withClient(DirectClientInterface)
+    .withClient(telegramPlugin)
+    .withClient(twitterPlugin)
     .withModelProvider(ModelProviderName.OPENAI, process.env.OPENAI_API_KEY)
     .withPlugin(googleSearchPlugin)
     .withPlugin(tokenTrendingPlugin)
-    .withPlugin(nodePlugin)
+    .withPlugin(pluginWiki)
+    // FIX: nodePlugin is not working
+    // .withPlugin(nodePlugin)
     .withPlugin(bootstrapPlugin)
     .withPlugin(sequencerPlugin);
 
   // Conditionally add ATP plugin if wallet key exists
   if (process.env.WALLET_PRIVATE_KEY) {
-    const atpPlugin = await createATPPlugin({
+    const atpPlugin = await createAtpPlugin({
       walletPrivateKey: process.env.WALLET_PRIVATE_KEY,
     });
     const fraxlendPlugin = await createFraxlendPlugin({

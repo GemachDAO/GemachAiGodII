@@ -1,2 +1,4 @@
 import { Character } from "@elizaos/core";
-export declare const ari: Character;
+export declare const ari: Character & {
+    clients: string[];
+};

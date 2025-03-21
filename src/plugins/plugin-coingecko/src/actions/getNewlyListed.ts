@@ -27,7 +27,7 @@ interface NewCoinsResponse extends Array<NewCoin> {}
 
 export const GetNewCoinsSchema = z.object({
     limit: z.number().min(1).max(50).default(10)
-});
+}) 
 
 export type GetNewCoinsContent = z.infer<typeof GetNewCoinsSchema> & Content;
 

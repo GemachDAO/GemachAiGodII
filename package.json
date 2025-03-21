@@ -1,7 +1,7 @@
 {
   "name": "ari",
   "version": "0.1.1",
-  "main": "src/index.ts",
+  "main": "",
   "type": "module",
   "scripts": {
     "build": "tsup --format esm --dts",
@@ -13,21 +13,22 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@elizaos/adapter-sqlite": "^0.1.9",
-    "@elizaos/client-auto": "^0.1.9",
-    "@elizaos/client-direct": "^0.1.9",
-    "@elizaos/client-discord": "^0.1.9",
-    "@elizaos/client-telegram": "^0.1.9",
-    "@elizaos/client-twitter": "^0.1.9",
-    "@elizaos/core": "^0.1.9",
-    "@elizaos/plugin-bootstrap": "^0.1.9",
+    "@elizaos/adapter-sqlite": "github:elizaos-plugins/adapter-sqlite",
+    "@elizaos/client-auto": "^0.25.6-alpha.1",
+    "@elizaos/client-direct": "^0.25.6-alpha.1",
+    "@elizaos/client-discord": "^0.25.6-alpha.1",
+    "@elizaos/client-telegram": "github:elizaos-plugins/client-telegram",
+    "@elizaos/client-twitter": "github:elizaos-plugins/client-twitter",
+    "@elizaos/core": "0.25.9",
+    "@elizaos/plugin-bootstrap": "^0.25.9",
     "@elizaos/plugin-image-generation": "^0.1.9",
-    "@elizaos/plugin-node": "^0.1.9",
-    "@iqai/agent": "^0.0.5",
-    "@iqai/plugin-atp": "^0.1.9",
-    "@iqai/plugin-fraxlend": "^0.1.10",
-    "@iqai/plugin-odos": "^0.1.9",
-    "@iqai/plugin-sequencer": "^0.1.10",
+    "@elizaos/plugin-node": "^0.25.6-alpha.1",
+    "@iqai/agent": "^0.2.0",
+    "@iqai/plugin-wiki": "^0.0.3",
+    "@iqai/plugin-atp": "^0.3.0",
+    "@iqai/plugin-fraxlend": "^0.2.0",
+    "@iqai/plugin-odos": "^0.26.0",
+    "@iqai/plugin-sequencer": "^0.2.0",
     "@tavily/core": "^0.0.2",
     "axios": "^1.7.9",
     "better-sqlite3": "^11.7.2",
@@ -40,6 +41,6 @@
     "typescript": "^5.7.2",
     "viem": "^2.23.4",
     "yargs": "^17.7.2",
-    "zod": "3.23.8"
+    "zod": "3.24.2"
   }
 }
