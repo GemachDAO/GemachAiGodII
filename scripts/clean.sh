@@ -12,5 +12,13 @@ find . -type d -name "node_modules" -exec rm -rf {} + \
 rm -rf ./packages/core/cache ./dist ./data
 
 
+# Remove pnpm-lock.yaml
+rm -rf pnpm-lock.yaml
+
+pnpm store prune 
+pnpm cache delete
+
+
+
 
 echo "Cleanup completed."
